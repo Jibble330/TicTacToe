@@ -25,8 +25,9 @@ var games []game
 //Server functions
 func sendGame(c *gin.Context) {
     //Add uid checker to this
-	gameId, err := strconv.Atoi(c.Query("gameid"))
-	if catch(err) {
+	gameId, gameErr := strconv.Atoi(c.Query("gameid"))
+    uid := c.Query("uid")
+	if catch(gameErr) || uid == ""{
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
@@ -35,6 +36,10 @@ func sendGame(c *gin.Context) {
 		c.AbortWithStatus(http.StatusNotFound)
 		return
 	}
+    if getPlayer(games[gameIndex], uid) == 0 {
+        c.AbortWithStatus(http.StatusForbidden)
+        return
+    }
 	c.IndentedJSON(http.StatusOK, games[gameIndex])
 }
 
