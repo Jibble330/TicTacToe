@@ -16,7 +16,7 @@ type game struct {
 	Player  int       `json:"player"`
 	Turn    int       `json:"turn"`
 	Wins    [2]int    `json:"wins"`
-	Players []int       `json:"players"`
+	Players []string  `json:"players"`
 	Winner  int       `json:"winner"`
 }
 
@@ -39,23 +39,25 @@ func sendGame(c *gin.Context) {
 
 func update(c *gin.Context) {
 	//Parse arguments from url
-	id, idErr := strconv.Atoi(c.Query("id"))
-	player, playerErr := strconv.Atoi(c.Query("player"))
+	gameId, gameErr := strconv.Atoi(c.Query("gameid"))
+	uid, uidErr := strconv.Atoi(c.Query("uid"))
 	row, rowErr := strconv.Atoi(c.Query("row"))
 	column, columnErr := strconv.Atoi(c.Query("column"))
-	//Check for errors
-	if catch(idErr) || catch(playerErr) || catch(rowErr) || catch(columnErr) {
+    
+	if catch(gameErr) || catch(uidErr) || catch(rowErr) || catch(columnErr) {
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
+    
+    player := getPlayer()
 
 	c.Status(http.StatusOK)
-	gameIndex, err := findGame(id)
+	gameIndex, err := findGame(gameId)
 	if catch(err) {
 		c.AbortWithStatus(http.StatusNotFound)
 		return
 	}
-	games[gameIndex].Board[row][column] = player
+	games[gameIndex].Board[row][column] = 
 	games[gameIndex] = gameUpdate(games[gameIndex])
 	c.IndentedJSON(http.StatusOK, games[gameIndex])
 }
@@ -78,7 +80,7 @@ func create(c *gin.Context) {
 		Player:  0,
 		Turn:    1,
 		Wins:    [2]int{0, 0},
-		Players: []int{},
+		Players: []string{randId()},
 		Winner:  0,
 	}
 	games = append(games, newGame)
@@ -86,13 +88,13 @@ func create(c *gin.Context) {
 	fmt.Println(games)
 }
 
-func close(c *gin.Context) {
-	id, err := strconv.Atoi(c.Query("id"))
+func destroy(c *gin.Context) {
+	gameId, err := strconv.Atoi(c.Query("gameid"))
 	if catch(err) {
 		c.AbortWithStatus(http.StatusBadGateway)
 		return
 	}
-	index, err := findGame(id)
+	index, err := findGame(gameId)
 	if catch(err) {
 		c.AbortWithStatus(http.StatusNotFound)
 		return
@@ -101,27 +103,39 @@ func close(c *gin.Context) {
 }
 
 func connect(c *gin.Context) {
-	id, err := strconv.Atoi(c.Query("id"))
+	gameId, err := strconv.Atoi(c.Query("gameid"))
 	if catch(err) {
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
-	gameIndex, err := findGame(id)
+	gameIndex, err := findGame(gameId)
 	if catch(err) {
 		c.AbortWithStatus(http.StatusNotFound)
 		return
 	}
-	if games[gameIndex].Players >= 2 {
+	if len(games[gameIndex].Players) >= 2 {
 		c.AbortWithStatus(http.StatusForbidden)
 		return
 	}
-	games[gameIndex].Players = 2
-	//Need random string for id
-	c.Writer.WriteString(fmt.Sprintf("{\"id\": %v}", random))
+    
+    uid := randId() //Generate random id to identify player 2
+	games[gameIndex].Players = append(games[gameIndex].Players, uid)
+    jsonData := []byte(fmt.Sprintf(`{"id": %v}`, uid))
+	c.Data(http.StatusOK, "application/json", jsonData)
 }
 
 func reset(c *gin.Context) {
-
+	gameId, err := strconv.Atoi(c.Query("gameid"))
+	if catch(err) {
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+	gameIndex, err := findGame(gameId)
+    if catch(err) {
+        c.AbortWithStatus(http.StatusNotFound)
+    }
+	games[gameIndex].Board = [3][3]int{{0, 0, 0}, {0, 0, 0}, {0, 0, 0}}
+	c.Status(http.StatusOK)
 }
 
 func all(c *gin.Context) {
@@ -180,7 +194,7 @@ func findGame(id int) (int, error) {
 	return -1, errors.New("Game with specified ID not found")
 }
 
-//utils
+//Utility functions
 func sum(arr [3]int) (summed int) {
 	for i := 0; i < len(arr); i++ {
 		summed += arr[i]
@@ -206,17 +220,41 @@ func remove(slice []game, index int) []game {
 }
 
 func randId() string {
-	
+	uid := xid.New().String()
+    duplicate := false
+    for _, unique := range games {
+        if getPlayer(unique, uid) != 0 {
+            duplicate = true
+        }
+    }
+    for duplicate {
+	    uid := xid.New().String()
+        for _, unique := range games {
+            if getPlayer(unique, uid) != 0 {
+                duplicate = true
+            }
+        }
+    }
+    return uid
+}
+
+func getPlayer(unique game, uid string) int {
+    for player, id := range unique.Players {
+        if uid == id {
+            return player+1
+        }
+    }
+    return 0
 }
 
 func main() {
 	router := gin.Default()
-	router.GET("/update", sendGame)
 	router.GET("/all", all)
+    router.GET("/update", sendGame)
 	router.POST("/update", update)
 	router.POST("/reset", reset)
 	router.POST("/create", create)
-	router.POST("/close")
+	router.POST("/destroy", destroy)
 	router.POST("/connect", connect)
 	router.Run("0.0.0.0:8080")
 }
