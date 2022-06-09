@@ -24,12 +24,13 @@ var games []game
 
 //Server functions
 func sendGame(c *gin.Context) {
-	id, err := strconv.Atoi(c.Query("id"))
+    //Add uid checker to this
+	gameId, err := strconv.Atoi(c.Query("gameid"))
 	if catch(err) {
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
-	gameIndex, err := findGame(id)
+	gameIndex, err := findGame(gameId)
 	if catch(err) {
 		c.AbortWithStatus(http.StatusNotFound)
 		return
@@ -40,16 +41,14 @@ func sendGame(c *gin.Context) {
 func update(c *gin.Context) {
 	//Parse arguments from url
 	gameId, gameErr := strconv.Atoi(c.Query("gameid"))
-	uid, uidErr := strconv.Atoi(c.Query("uid"))
+	uid := c.Query("uid")
 	row, rowErr := strconv.Atoi(c.Query("row"))
 	column, columnErr := strconv.Atoi(c.Query("column"))
     
-	if catch(gameErr) || catch(uidErr) || catch(rowErr) || catch(columnErr) {
+	if catch(gameErr) || catch(rowErr) || catch(columnErr) {
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
-    
-    player := getPlayer()
 
 	c.Status(http.StatusOK)
 	gameIndex, err := findGame(gameId)
@@ -57,7 +56,9 @@ func update(c *gin.Context) {
 		c.AbortWithStatus(http.StatusNotFound)
 		return
 	}
-	games[gameIndex].Board[row][column] = 
+    
+    player := getPlayer(games[gameIndex], uid)
+	games[gameIndex].Board[row][column] = player
 	games[gameIndex] = gameUpdate(games[gameIndex])
 	c.IndentedJSON(http.StatusOK, games[gameIndex])
 }
@@ -248,6 +249,7 @@ func getPlayer(unique game, uid string) int {
 }
 
 func main() {
+    fmt.Println("Starting!")
 	router := gin.Default()
 	router.GET("/all", all)
     router.GET("/update", sendGame)
