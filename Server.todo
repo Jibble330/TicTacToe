@@ -1,0 +1,5 @@
+Create unique IDs to track players
+Create disconnect function, allowing players to leave a game without creating a new one
+Create Python logic
+Create console Tic-Tac-Toe game
+Learn Curses and recreate the console game
