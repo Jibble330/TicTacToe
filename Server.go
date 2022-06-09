@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-
 	"github.com/gin-gonic/gin"
+	"github.com/rs/xid"
 )
 
 type game struct {
@@ -16,7 +16,7 @@ type game struct {
 	Player  int       `json:"player"`
 	Turn    int       `json:"turn"`
 	Wins    [2]int    `json:"wins"`
-	Players int       `json:"players"`
+	Players []int       `json:"players"`
 	Winner  int       `json:"winner"`
 }
 
@@ -78,7 +78,7 @@ func create(c *gin.Context) {
 		Player:  0,
 		Turn:    1,
 		Wins:    [2]int{0, 0},
-		Players: 1,
+		Players: []int{},
 		Winner:  0,
 	}
 	games = append(games, newGame)
@@ -203,6 +203,10 @@ func catch(err error) bool {
 
 func remove(slice []game, index int) []game {
 	return append(slice[:index], slice[index+1:]...)
+}
+
+func randId() string {
+	
 }
 
 func main() {
